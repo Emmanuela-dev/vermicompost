@@ -1,0 +1,45 @@
+.data-page {
+  text-align: left;
+  padding: 48px 0;
+}
+.data-page h1 {
+  text-align: center;
+}
+.data-intro {
+  text-align: center;
+  color: var(--text);
+  font-size: 17px;
+  line-height: 155%;
+  max-width: 720px;
+  margin: 8px auto 48px;
+}
+.chart-container {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  box-sizing: border-box;
+  margin-bottom: 40px;
+}
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  max-width: 800px;
+  margin: 0 auto;
+}
+.data-table th,
+.data-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.data-table th {
+  font-weight: 600;
+  color: var(--text-h);
+  background: var(--social-bg);
+}
+.data-table td {
+  color: var(--text);
+  font-size: 15px;
+}

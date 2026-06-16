@@ -1,0 +1,255 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+@theme {
+  /* Dark Navy / Slate base */
+  --color-navy-50: #f0f4ff;
+  --color-navy-100: #e0eaff;
+  --color-navy-200: #c7d7fd;
+  --color-navy-300: #a5b8fc;
+  --color-navy-400: #8193f8;
+  --color-navy-500: #6370f1;
+  --color-navy-600: #4f54e7;
+  --color-navy-700: #4241cf;
+  --color-navy-800: #3736a7;
+  --color-navy-900: #303384;
+
+  /* Dark backgrounds */
+  --color-dark-950: #080c14;
+  --color-dark-900: #0d1220;
+  --color-dark-800: #131a2e;
+  --color-dark-700: #1a2540;
+  --color-dark-600: #223050;
+  --color-dark-500: #2d3f63;
+  --color-dark-400: #3d5278;
+  --color-dark-300: #546a92;
+  --color-dark-200: #7189ad;
+  --color-dark-100: #9aaec8;
+
+  /* Emerald green - primary accent */
+  --color-emerald-50: #ecfdf5;
+  --color-emerald-100: #d1fae5;
+  --color-emerald-200: #a7f3d0;
+  --color-emerald-300: #6ee7b7;
+  --color-emerald-400: #34d399;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+  --color-emerald-800: #065f46;
+  --color-emerald-900: #064e3b;
+
+  /* Amber - secondary accent */
+  --color-amber-50: #fffbeb;
+  --color-amber-100: #fef3c7;
+  --color-amber-200: #fde68a;
+  --color-amber-300: #fcd34d;
+  --color-amber-400: #fbbf24;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #d97706;
+  --color-amber-700: #b45309;
+  --color-amber-800: #92400e;
+  --color-amber-900: #78350f;
+
+  /* Coral/Red - alert */
+  --color-rose-400: #fb7185;
+  --color-rose-500: #f43f5e;
+  --color-rose-600: #e11d48;
+
+  /* Cyan - info */
+  --color-cyan-400: #22d3ee;
+  --color-cyan-500: #06b6d4;
+
+  /* Earth tones - kept for compatibility */
+  --color-earth-50: #fdf8f3;
+  --color-earth-100: #f5e9d8;
+  --color-earth-200: #e8d3b5;
+  --color-earth-300: #d4b48a;
+  --color-earth-400: #c19563;
+  --color-earth-500: #a67c52;
+  --color-earth-600: #8b6544;
+  --color-earth-700: #6e4e36;
+  --color-earth-800: #5a402d;
+  --color-earth-900: #4a3527;
+
+  /* Leaf tones - kept for compatibility */
+  --color-leaf-50: #f2f8f3;
+  --color-leaf-100: #dff0e2;
+  --color-leaf-200: #bfe0c5;
+  --color-leaf-300: #92c99e;
+  --color-leaf-400: #6aad7a;
+  --color-leaf-500: #4a9060;
+  --color-leaf-600: #3a734d;
+  --color-leaf-700: #305c3f;
+  --color-leaf-800: #294a35;
+  --color-leaf-900: #213d2d;
+
+  --color-cream: #fefdfb;
+  --color-warm: #f5f0e8;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: #080c14;
+  color: #e8edf5;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Glassmorphism utility ─── */
+.glass {
+  background: rgba(19, 26, 46, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-light {
+  background: rgba(30, 40, 65, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ─── Glow effects ─── */
+.glow-emerald {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.2), 0 0 60px rgba(16, 185, 129, 0.05);
+}
+
+.glow-amber {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.2), 0 0 60px rgba(245, 158, 11, 0.05);
+}
+
+.glow-rose {
+  box-shadow: 0 0 20px rgba(244, 63, 94, 0.2), 0 0 60px rgba(244, 63, 94, 0.05);
+}
+
+/* ─── Gradient text ─── */
+.gradient-text {
+  background: linear-gradient(135deg, #10b981 0%, #34d399 50%, #6ee7b7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-text-amber {
+  background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Animated gradient border ─── */
+.gradient-border {
+  position: relative;
+  background: linear-gradient(#0d1220, #0d1220) padding-box,
+              linear-gradient(135deg, #10b981, #059669, #047857) border-box;
+  border: 1px solid transparent;
+}
+
+/* ─── Pulse animation ─── */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-slide-up { animation: slide-up 0.4s ease-out both; }
+.animate-fade-in { animation: fade-in 0.3s ease-out both; }
+.animate-pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+.animate-spin-slow { animation: spin-slow 8s linear infinite; }
+
+/* ─── Shimmer skeleton ─── */
+.shimmer {
+  background: linear-gradient(90deg, #1a2540 25%, #223050 50%, #1a2540 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0d1220; }
+::-webkit-scrollbar-thumb { background: #2d3f63; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3d5278; }
+
+/* ─── Status badge colors ─── */
+.badge-optimal {
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.badge-watch {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.badge-critical {
+  background: rgba(244, 63, 94, 0.12);
+  color: #fb7185;
+  border: 1px solid rgba(244, 63, 94, 0.25);
+}
+
+/* ─── Card hover ─── */
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* ─── Progress bar track ─── */
+.progress-track {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.progress-fill-emerald {
+  background: linear-gradient(90deg, #059669, #10b981, #34d399);
+  border-radius: 9999px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.progress-fill-amber {
+  background: linear-gradient(90deg, #d97706, #f59e0b, #fbbf24);
+  border-radius: 9999px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.progress-fill-rose {
+  background: linear-gradient(90deg, #e11d48, #f43f5e, #fb7185);
+  border-radius: 9999px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}

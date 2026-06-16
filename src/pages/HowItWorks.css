@@ -1,0 +1,61 @@
+.how-page {
+  text-align: left;
+  padding: 48px 0;
+}
+.how-page h1 {
+  text-align: center;
+}
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-top: 32px;
+}
+.step {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  background: var(--bg);
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+.step:hover {
+  box-shadow: var(--shadow);
+  transform: translateY(-2px);
+}
+.step-num {
+  flex: 0 0 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  font-weight: 700;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.step-content {
+  flex: 1 1 0;
+}
+.step-content h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-h);
+  margin: 0 0 6px;
+}
+.step-content p {
+  color: var(--text);
+  font-size: 15px;
+  line-height: 150%;
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .step {
+    gap: 16px;
+    padding: 20px;
+  }
+}
