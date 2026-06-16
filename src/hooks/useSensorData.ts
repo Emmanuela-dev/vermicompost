@@ -1,4 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { ref, onValue, off } from 'firebase/database'
+import type { DataSnapshot, DatabaseReference } from 'firebase/database'
+import { db } from '../lib/firebase'
 
 export type SensorName = 'temperature' | 'moisture' | 'humidity' | 'waterLevel' | 'ph' | 'ammonia'
 
@@ -102,6 +105,21 @@ export const fallbackReadings: SensorReading[] = [
   },
 ]
 
+/** Returns true when all required Firebase env vars are present */
+function isFirebaseConfigured(): boolean {
+  const key = import.meta.env.VITE_FIREBASE_API_KEY as string | undefined
+  return !!key && key !== 'YOUR_FIREBASE_API_KEY'
+}
+
+/** Map a raw Firebase snapshot object onto our SensorReading array */
+function mapFirebaseSnapshot(data: Record<string, unknown>): SensorReading[] {
+  return fallbackReadings.map((r) => {
+    const raw = data[r.name]
+    const value = typeof raw === 'number' ? raw : r.value
+    return { ...r, value }
+  })
+}
+
 function generateSimulatedHistory(points = 24): SensorHistory[] {
   const now = new Date()
   return Array.from({ length: points }, (_, i) => {
@@ -151,102 +169,94 @@ export function computeHealthScore(readings: SensorReading[]): number {
 }
 
 type UseSensorDataOptions = {
-  pollInterval?: number
-  fetchHistory?: boolean
+  pollInterval?: number // used only in simulated fallback mode
 }
 
 export function useSensorData({ pollInterval = 30000 }: UseSensorDataOptions = {}) {
+  const firebaseReady = isFirebaseConfigured()
+
   const [readings, setReadings] = useState<SensorReading[]>(fallbackReadings)
   const [history, setHistory] = useState<SensorHistory[]>(generateSimulatedHistory(24))
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(firebaseReady)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const [error, setError] = useState<string | null>(null)
+  const simulationRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const refresh = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-    const controller = new AbortController()
-
-    try {
-      const iotUrl = import.meta.env.VITE_IOT_API_URL as string | undefined
-      const historyUrl = import.meta.env.VITE_IOT_HISTORY_URL as string | undefined
-
-      if (iotUrl) {
-        const res = await fetch(iotUrl, { signal: controller.signal })
-        if (!res.ok) throw new Error(`IoT API responded with ${res.status}`)
-        const data = (await res.json()) as Record<string, unknown>
-
-        // Attempt to map API response to readings
-        const mapped = fallbackReadings.map((r) => ({
-          ...r,
-          value: typeof data[r.name] === 'number' ? (data[r.name] as number) : r.value,
-        }))
-        setReadings(mapped)
-
-        // History endpoint
-        if (historyUrl) {
-          const hRes = await fetch(`${historyUrl}`, { signal: controller.signal })
-          if (hRes.ok) {
-            const hData = (await hRes.json()) as SensorHistory[]
-            setHistory(hData.slice(-24))
-          }
-        } else {
-          const now = new Date()
-          const newPoint: SensorHistory = {
-            time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            temperature: mapped[0].value,
-            moisture: mapped[1].value,
-            humidity: mapped[2].value,
-            waterLevel: mapped[3].value,
-            ph: mapped[4].value,
-            ammonia: mapped[5].value,
-          }
-          setHistory((prev) => [...prev.slice(-23), newPoint])
-        }
-      } else {
-        // Simulated live data
-        const live = generateLiveReadings()
-        setReadings(live)
-        const now = new Date()
-        const newPoint: SensorHistory = {
-          time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          temperature: live[0].value,
-          moisture: live[1].value,
-          humidity: live[2].value,
-          waterLevel: live[3].value,
-          ph: live[4].value,
-          ammonia: live[5].value,
-        }
-        setHistory((prev) => [...prev.slice(-23), newPoint])
-      }
-
-      setLastUpdated(new Date())
-    } catch (e) {
-      if ((e as Error).name !== 'AbortError') {
-        setError((e as Error).message || 'Failed to fetch sensor data')
-      }
-    } finally {
-      setIsLoading(false)
+  /** Append a reading snapshot to the rolling 24-point history */
+  const appendHistory = useCallback((live: SensorReading[]) => {
+    const now = new Date()
+    const point: SensorHistory = {
+      time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      temperature: live[0].value,
+      moisture: live[1].value,
+      humidity: live[2].value,
+      waterLevel: live[3].value,
+      ph: live[4].value,
+      ammonia: live[5].value,
     }
-
-    return controller
+    setHistory((prev) => [...prev.slice(-23), point])
   }, [])
 
+  /** noop when Firebase is active — updates arrive via onValue() */
+  const refresh = useCallback(async () => {}, [])
+
   useEffect(() => {
-    let controller: AbortController | null = null
+    if (firebaseReady && db) {
+      // ── Firebase real-time mode ──────────────────────────────────
+      setIsLoading(true)
+      setError(null)
 
-    const run = async () => {
-      controller = await refresh()
+      const sensorsRef: DatabaseReference = ref(db, 'sensors')
+
+      const unsubscribe = onValue(
+        sensorsRef,
+        (snapshot: DataSnapshot) => {
+          const data = snapshot.val() as Record<string, unknown> | null
+          if (data) {
+            const mapped = mapFirebaseSnapshot(data)
+            setReadings(mapped)
+            appendHistory(mapped)
+            setLastUpdated(new Date())
+            setError(null)
+          }
+          setIsLoading(false)
+        },
+        (err: Error) => {
+          setError(`Firebase: ${err.message}`)
+          setIsLoading(false)
+        },
+      )
+
+      return () => {
+        off(sensorsRef)
+        unsubscribe()
+      }
     }
 
-    void run()
-    const interval = window.setInterval(() => void refresh(), pollInterval)
+    // ── Simulated fallback mode ──────────────────────────────────
+    setIsLoading(false)
 
+    const tick = () => {
+      const live = generateLiveReadings()
+      setReadings(live)
+      appendHistory(live)
+      setLastUpdated(new Date())
+    }
+
+    tick()
+    simulationRef.current = setInterval(tick, pollInterval)
     return () => {
-      window.clearInterval(interval)
-      controller?.abort()
+      if (simulationRef.current) clearInterval(simulationRef.current)
     }
-  }, [refresh, pollInterval])
+  }, [pollInterval, appendHistory, firebaseReady])
 
-  return { readings, history, isLoading, lastUpdated, error, refresh }
+  return {
+    readings,
+    history,
+    isLoading,
+    lastUpdated,
+    error,
+    refresh,
+    usingFirebase: firebaseReady,
+  }
 }

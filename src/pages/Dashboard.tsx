@@ -176,7 +176,7 @@ function StatCard({
 }
 
 export default function Dashboard() {
-  const { readings, isLoading, lastUpdated, error } = useSensorData({ pollInterval: 30000 })
+  const { readings, isLoading, lastUpdated, error, usingFirebase } = useSensorData({ pollInterval: 30000 })
   const health = computeHealthScore(readings)
   const healthLabel = health >= 85 ? 'Excellent' : health >= 70 ? 'Good' : health >= 50 ? 'Fair' : 'Needs Attention'
 
@@ -211,6 +211,32 @@ export default function Dashboard() {
           {isLoading && (
             <span style={{ fontSize: '12px', color: '#546a92' }}>Updating…</span>
           )}
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '3px 10px',
+              borderRadius: '9999px',
+              fontSize: '11px',
+              fontWeight: 700,
+              letterSpacing: '0.06em',
+              background: usingFirebase ? 'rgba(16,185,129,0.08)' : 'rgba(99,112,241,0.08)',
+              color: usingFirebase ? '#34d399' : '#a5b8fc',
+              border: `1px solid ${usingFirebase ? 'rgba(16,185,129,0.2)' : 'rgba(99,112,241,0.2)'}`,
+            }}
+          >
+            <span
+              style={{
+                width: '5px',
+                height: '5px',
+                borderRadius: '50%',
+                background: usingFirebase ? '#34d399' : '#a5b8fc',
+                animation: usingFirebase ? 'pulse 2s infinite' : 'none',
+              }}
+            />
+            {usingFirebase ? 'Firebase Live' : 'Simulated'}
+          </span>
         </div>
         <h1
           style={{

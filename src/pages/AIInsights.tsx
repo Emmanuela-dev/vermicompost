@@ -140,7 +140,7 @@ function TypewriterText({ text }: { text: string }) {
 }
 
 export default function AIInsights() {
-  const { readings, isLoading: sensorLoading, lastUpdated } = useSensorData({ pollInterval: 60000 })
+  const { readings, isLoading: sensorLoading, lastUpdated, usingFirebase } = useSensorData({ pollInterval: 60000 })
   const [recommendation, setRecommendation] = useState<RecommendationState | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -175,7 +175,8 @@ export default function AIInsights() {
     }
   }, [sensorLoading, readings])
 
-  const hasApiKey = !!import.meta.env.VITE_GROQ_API_KEY
+  // hasApiKey kept for backward compat — Groq key now sourced from .env
+  // const hasApiKey = !!import.meta.env.VITE_GROQ_API_KEY
 
   return (
     <div
@@ -213,23 +214,54 @@ export default function AIInsights() {
           Groq AI analyzes your sensor readings and recommends precise actions •{' '}
           <span style={{ color: '#9aaec8' }}>Last analysis {lastUpdated.toLocaleTimeString()}</span>
         </p>
+        <div style={{ marginTop: '10px' }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 12px',
+              borderRadius: '9999px',
+              fontSize: '11px',
+              fontWeight: 700,
+              letterSpacing: '0.06em',
+              background: usingFirebase ? 'rgba(16,185,129,0.1)' : 'rgba(99,112,241,0.1)',
+              color: usingFirebase ? '#34d399' : '#a5b8fc',
+              border: `1px solid ${usingFirebase ? 'rgba(16,185,129,0.25)' : 'rgba(99,112,241,0.25)'}`,
+            }}
+          >
+            <span
+              style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                background: usingFirebase ? '#34d399' : '#a5b8fc',
+                animation: usingFirebase ? 'pulse 2s infinite' : 'none',
+              }}
+            />
+            {usingFirebase ? '🔥 Live from Firebase' : '⚡ Simulated data — add Firebase config to .env'}
+          </span>
+        </div>
       </div>
 
-      {/* API key warning */}
-      {!hasApiKey && (
+      {/* Groq AI active indicator */}
+      {import.meta.env.VITE_GROQ_API_KEY && (
         <div
           style={{
-            padding: '14px 18px',
+            padding: '12px 18px',
             borderRadius: '12px',
-            background: 'rgba(245,158,11,0.08)',
-            border: '1px solid rgba(245,158,11,0.2)',
-            color: '#fbbf24',
+            background: 'rgba(16,185,129,0.06)',
+            border: '1px solid rgba(16,185,129,0.15)',
+            color: '#6ee7b7',
             fontSize: '13px',
             marginBottom: '24px',
-            lineHeight: 1.6,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
           }}
         >
-          <strong>⚙️ Setup needed:</strong> Add <code style={{ background: 'rgba(255,255,255,0.08)', padding: '1px 6px', borderRadius: '4px' }}>VITE_GROQ_API_KEY=your_key</code> to your <code style={{ background: 'rgba(255,255,255,0.08)', padding: '1px 6px', borderRadius: '4px' }}>.env</code> file and restart the dev server for live AI recommendations.
+          <span>✅</span>
+          <span>Groq AI connected — recommendations are powered by live sensor data{usingFirebase ? ' from Firebase' : ''}.</span>
         </div>
       )}
 
