@@ -1,6 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
 import Layout from './Layout'
-import Home from './pages/Home'
 import Benefits from './pages/Benefits'
 import HowItWorks from './pages/HowItWorks'
 import Data from './pages/Data'
@@ -14,7 +13,7 @@ function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<Dashboard />} />
         <Route path="benefits" element={<Benefits />} />
         <Route path="how-it-works" element={<HowItWorks />} />
         <Route path="data" element={<Data />} />

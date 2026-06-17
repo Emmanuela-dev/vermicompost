@@ -1,4 +1,11 @@
-import { useSensorData, getStatus, formatValue, computeHealthScore, type SensorReading } from '../hooks/useSensorData'
+import {
+  useSensorData,
+  getStatus,
+  formatValue,
+  computeHealthScore,
+  computeFeedingStatus,
+  type SensorReading,
+} from '../hooks/useSensorData'
 
 const statusColors: Record<string, { bg: string; text: string; border: string; glow: string }> = {
   Optimal: {
@@ -46,8 +53,32 @@ function SensorCard({ reading }: { reading: SensorReading }) {
         padding: '20px',
         boxShadow: colors.glow,
         transition: 'all 0.2s ease',
+        position: 'relative',
+        overflow: 'hidden',
       }}
     >
+      {/* Simulated badge */}
+      {reading.isSimulated && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            fontSize: '9px',
+            fontWeight: 700,
+            letterSpacing: '0.06em',
+            padding: '2px 7px',
+            borderRadius: '9999px',
+            background: 'rgba(99,112,241,0.12)',
+            color: '#a5b8fc',
+            border: '1px solid rgba(99,112,241,0.2)',
+            textTransform: 'uppercase',
+          }}
+        >
+          Simulated
+        </div>
+      )}
+
       {/* Header row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
         <div>
@@ -66,6 +97,7 @@ function SensorCard({ reading }: { reading: SensorReading }) {
             background: colors.bg,
             color: colors.text,
             border: `1px solid ${colors.border}`,
+            marginTop: reading.isSimulated ? '18px' : '0',
           }}
         >
           {status}
@@ -175,6 +207,132 @@ function StatCard({
   )
 }
 
+function FeedingCard({ readings }: { readings: SensorReading[] }) {
+  const feeding = computeFeedingStatus(readings)
+
+  // Parse the color into rgba for backgrounds
+  const hexToRgba = (hex: string, alpha: number) => {
+    const r = parseInt(hex.slice(1, 3), 16)
+    const g = parseInt(hex.slice(3, 5), 16)
+    const b = parseInt(hex.slice(5, 7), 16)
+    return `rgba(${r},${g},${b},${alpha})`
+  }
+
+  const bgColor = hexToRgba(feeding.color, 0.08)
+  const borderColor = hexToRgba(feeding.color, 0.3)
+  const glowColor = hexToRgba(feeding.color, 0.15)
+
+  return (
+    <div
+      style={{
+        background: `radial-gradient(ellipse at top left, ${hexToRgba(feeding.color, 0.06)} 0%, rgba(19,26,46,0.7) 60%)`,
+        backdropFilter: 'blur(16px)',
+        border: `1px solid ${borderColor}`,
+        borderRadius: '20px',
+        padding: '28px 32px',
+        marginBottom: '32px',
+        boxShadow: `0 0 40px ${glowColor}, inset 0 1px 0 rgba(255,255,255,0.05)`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '24px',
+        flexWrap: 'wrap',
+      }}
+    >
+      {/* Left: icon + label */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <div
+          style={{
+            width: '64px',
+            height: '64px',
+            borderRadius: '16px',
+            background: bgColor,
+            border: `1px solid ${borderColor}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '28px',
+            flexShrink: 0,
+            boxShadow: `0 0 20px ${glowColor}`,
+            animation: feeding.urgent ? 'pulse 1.5s ease-in-out infinite' : 'none',
+          }}
+        >
+          {feeding.icon}
+        </div>
+        <div>
+          <div
+            style={{
+              fontSize: '11px',
+              color: '#546a92',
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              marginBottom: '4px',
+            }}
+          >
+            Feeding Status
+          </div>
+          <div
+            style={{
+              fontSize: '28px',
+              fontWeight: 800,
+              color: feeding.color,
+              letterSpacing: '-0.02em',
+              lineHeight: 1.1,
+              marginBottom: '6px',
+            }}
+          >
+            {feeding.status}
+          </div>
+          <div style={{ fontSize: '13px', color: '#9aaec8', maxWidth: '420px', lineHeight: 1.5 }}>
+            {feeding.message}
+          </div>
+        </div>
+      </div>
+
+      {/* Right: action prompt */}
+      <div
+        style={{
+          padding: '14px 20px',
+          borderRadius: '12px',
+          background: bgColor,
+          border: `1px solid ${borderColor}`,
+          textAlign: 'center',
+          minWidth: '140px',
+        }}
+      >
+        <div style={{ fontSize: '11px', color: '#546a92', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>
+          Next Action
+        </div>
+        <div style={{ fontSize: '14px', fontWeight: 700, color: feeding.color }}>
+          {feeding.status === 'Feed Now' && 'Add food scraps now'}
+          {feeding.status === 'Feed Soon' && 'Feed within 24h'}
+          {feeding.status === 'Well Fed' && 'Check in 2–3 days'}
+          {feeding.status === 'Overfed' && 'Aerate & wait'}
+        </div>
+        {feeding.urgent && (
+          <div
+            style={{
+              marginTop: '8px',
+              padding: '3px 10px',
+              borderRadius: '9999px',
+              fontSize: '10px',
+              fontWeight: 700,
+              letterSpacing: '0.06em',
+              background: hexToRgba(feeding.color, 0.15),
+              color: feeding.color,
+              border: `1px solid ${borderColor}`,
+              textTransform: 'uppercase',
+            }}
+          >
+            ⚡ Action Required
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const { readings, isLoading, lastUpdated, error, usingFirebase } = useSensorData({ pollInterval: 30000 })
   const health = computeHealthScore(readings)
@@ -192,7 +350,7 @@ export default function Dashboard() {
     >
       {/* Page header */}
       <div style={{ marginBottom: '36px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px', flexWrap: 'wrap' }}>
           <span
             style={{
               padding: '4px 12px',
@@ -235,7 +393,7 @@ export default function Dashboard() {
                 animation: usingFirebase ? 'pulse 2s infinite' : 'none',
               }}
             />
-            {usingFirebase ? 'Firebase Live' : 'Simulated'}
+            {usingFirebase ? '🔥 Firebase Live (Temp · Humidity · Water)' : 'Simulated'}
           </span>
         </div>
         <h1
@@ -273,6 +431,9 @@ export default function Dashboard() {
           ⚠️ {error} — Showing simulated data.
         </div>
       )}
+
+      {/* ── Feeding Status Banner ── */}
+      <FeedingCard readings={readings} />
 
       {/* Summary stats row */}
       <div style={{ display: 'flex', gap: '16px', marginBottom: '32px', flexWrap: 'wrap' }}>
@@ -325,9 +486,14 @@ export default function Dashboard() {
 
       {/* Sensor grid */}
       <div style={{ marginBottom: '12px' }}>
-        <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#9aaec8', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '16px' }}>
-          Current Readings
-        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+          <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#9aaec8', letterSpacing: '0.05em', textTransform: 'uppercase', margin: 0 }}>
+            Current Readings
+          </h2>
+          <span style={{ fontSize: '11px', color: '#546a92' }}>
+            🔥 = Firebase &nbsp;·&nbsp; ⚡ = Simulated (no sensor)
+          </span>
+        </div>
         <div
           style={{
             display: 'grid',

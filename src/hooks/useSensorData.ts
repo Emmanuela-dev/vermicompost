@@ -5,6 +5,12 @@ import { db } from '../lib/firebase'
 
 export type SensorName = 'temperature' | 'moisture' | 'humidity' | 'waterLevel' | 'ph' | 'ammonia'
 
+// Sensors sourced from Firebase Realtime Database (real hardware)
+const FIREBASE_SENSORS = new Set<SensorName>(['temperature', 'humidity', 'waterLevel'])
+
+// Sensors without hardware — values are simulated
+const SIMULATED_SENSORS = new Set<SensorName>(['moisture', 'ph', 'ammonia'])
+
 export type SensorReading = {
   name: SensorName
   label: string
@@ -16,6 +22,7 @@ export type SensorReading = {
   idealMax: number
   description: string
   icon: string
+  isSimulated?: boolean
 }
 
 export type SensorHistory = {
@@ -29,6 +36,14 @@ export type SensorHistory = {
 }
 
 export type SensorStatus = 'Optimal' | 'Watch' | 'Critical'
+
+export type FeedingStatus = {
+  status: 'Feed Now' | 'Feed Soon' | 'Well Fed' | 'Overfed'
+  message: string
+  color: string
+  icon: string
+  urgent: boolean
+}
 
 export const fallbackReadings: SensorReading[] = [
   {
@@ -54,6 +69,7 @@ export const fallbackReadings: SensorReading[] = [
     idealMax: 80,
     description: 'Moisture controls oxygen flow and worm comfort.',
     icon: '💧',
+    isSimulated: true,
   },
   {
     name: 'humidity',
@@ -90,6 +106,7 @@ export const fallbackReadings: SensorReading[] = [
     idealMax: 7.5,
     description: 'pH shows whether the compost is acidic or alkaline.',
     icon: '⚗️',
+    isSimulated: true,
   },
   {
     name: 'ammonia',
@@ -102,6 +119,7 @@ export const fallbackReadings: SensorReading[] = [
     idealMax: 25,
     description: 'Ammonia indicates protein-rich waste decomposition intensity.',
     icon: '🧪',
+    isSimulated: true,
   },
 ]
 
@@ -111,39 +129,25 @@ function isFirebaseConfigured(): boolean {
   return !!key && key !== 'YOUR_FIREBASE_API_KEY'
 }
 
-/** Map a raw Firebase snapshot object onto our SensorReading array */
-function mapFirebaseSnapshot(data: Record<string, unknown>): SensorReading[] {
-  return fallbackReadings.map((r) => {
-    const raw = data[r.name]
-    const value = typeof raw === 'number' ? raw : r.value
-    return { ...r, value }
-  })
+/** Generate a new simulated value within the ideal range ± small variance */
+function simulateValue(r: SensorReading): number {
+  const variance = (r.idealMax - r.idealMin) * 0.12
+  const base = (r.idealMin + r.idealMax) / 2
+  return Number((base + (Math.random() - 0.5) * 2 * variance).toFixed(1))
 }
 
 function generateSimulatedHistory(points = 24): SensorHistory[] {
   const now = new Date()
   return Array.from({ length: points }, (_, i) => {
     const t = new Date(now.getTime() - (points - 1 - i) * 60 * 60 * 1000)
-    const timeStr = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     return {
-      time: timeStr,
+      time: t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       temperature: Number((24 + Math.sin(i / 4) * 3 + Math.random() * 1.5).toFixed(1)),
       moisture: Number((65 + Math.cos(i / 6) * 8 + Math.random() * 3).toFixed(1)),
       humidity: Number((60 + Math.sin(i / 5) * 7 + Math.random() * 2).toFixed(1)),
       waterLevel: Number((70 + Math.cos(i / 8) * 10 + Math.random() * 2).toFixed(1)),
       ph: Number((7.0 + Math.sin(i / 7) * 0.3 + Math.random() * 0.15).toFixed(2)),
       ammonia: Number((15 + Math.sin(i / 3) * 5 + Math.random() * 2).toFixed(1)),
-    }
-  })
-}
-
-function generateLiveReadings(): SensorReading[] {
-  return fallbackReadings.map((r) => {
-    const variance = (r.idealMax - r.idealMin) * 0.12
-    const base = (r.idealMin + r.idealMax) / 2
-    return {
-      ...r,
-      value: Number((base + (Math.random() - 0.5) * 2 * variance).toFixed(1)),
     }
   })
 }
@@ -168,8 +172,57 @@ export function computeHealthScore(readings: SensorReading[]): number {
   return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
 }
 
+/**
+ * Determines whether the worms need feeding based on sensor readings.
+ *
+ * Logic (biologically grounded):
+ * - Overfed  → ammonia > 28 ppm  (too much protein waste decomposing)
+ * - Feed Now → moisture < 55%    (bin drying out — food nearly gone)
+ * - Feed Soon→ moisture 55–63%   (food being consumed, top up soon)
+ * - Well Fed → moisture 63–80%   (healthy, check again in 2–3 days)
+ */
+export function computeFeedingStatus(readings: SensorReading[]): FeedingStatus {
+  const moisture = readings.find((r) => r.name === 'moisture')?.value ?? 68
+  const ammonia = readings.find((r) => r.name === 'ammonia')?.value ?? 18
+
+  if (ammonia > 28) {
+    return {
+      status: 'Overfed',
+      message: 'Too much food — high ammonia detected. Stop feeding & aerate the bin.',
+      color: '#f43f5e',
+      icon: '🚫',
+      urgent: true,
+    }
+  }
+  if (moisture < 55) {
+    return {
+      status: 'Feed Now',
+      message: 'Moisture is low — food scraps are depleted. Add moist food waste immediately.',
+      color: '#fb923c',
+      icon: '🍎',
+      urgent: true,
+    }
+  }
+  if (moisture < 63) {
+    return {
+      status: 'Feed Soon',
+      message: 'Worms are actively feeding. Add food scraps within the next 24 hours.',
+      color: '#fbbf24',
+      icon: '⏰',
+      urgent: false,
+    }
+  }
+  return {
+    status: 'Well Fed',
+    message: 'Bin has adequate food. Monitor and feed again in 2–3 days.',
+    color: '#34d399',
+    icon: '✅',
+    urgent: false,
+  }
+}
+
 type UseSensorDataOptions = {
-  pollInterval?: number // used only in simulated fallback mode
+  pollInterval?: number // interval for refreshing simulated sensors
 }
 
 export function useSensorData({ pollInterval = 30000 }: UseSensorDataOptions = {}) {
@@ -180,75 +233,111 @@ export function useSensorData({ pollInterval = 30000 }: UseSensorDataOptions = {
   const [isLoading, setIsLoading] = useState(firebaseReady)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const [error, setError] = useState<string | null>(null)
-  const simulationRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const simIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   /** Append a reading snapshot to the rolling 24-point history */
   const appendHistory = useCallback((live: SensorReading[]) => {
     const now = new Date()
-    const point: SensorHistory = {
-      time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      temperature: live[0].value,
-      moisture: live[1].value,
-      humidity: live[2].value,
-      waterLevel: live[3].value,
-      ph: live[4].value,
-      ammonia: live[5].value,
-    }
-    setHistory((prev) => [...prev.slice(-23), point])
+    const byName = Object.fromEntries(live.map((r) => [r.name, r.value]))
+    setHistory((prev) => [
+      ...prev.slice(-23),
+      {
+        time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        temperature: byName.temperature ?? 0,
+        moisture: byName.moisture ?? 0,
+        humidity: byName.humidity ?? 0,
+        waterLevel: byName.waterLevel ?? 0,
+        ph: byName.ph ?? 0,
+        ammonia: byName.ammonia ?? 0,
+      },
+    ])
   }, [])
 
-  /** noop when Firebase is active — updates arrive via onValue() */
   const refresh = useCallback(async () => {}, [])
 
+  // ── Simulated sensor ticker (moisture, ph, ammonia) ─────────────────────────
+  // Runs regardless of Firebase mode — these sensors have no hardware
   useEffect(() => {
-    if (firebaseReady && db) {
-      // ── Firebase real-time mode ──────────────────────────────────
-      setIsLoading(true)
-      setError(null)
-
-      const sensorsRef: DatabaseReference = ref(db, 'sensors')
-
-      const unsubscribe = onValue(
-        sensorsRef,
-        (snapshot: DataSnapshot) => {
-          const data = snapshot.val() as Record<string, unknown> | null
-          if (data) {
-            const mapped = mapFirebaseSnapshot(data)
-            setReadings(mapped)
-            appendHistory(mapped)
-            setLastUpdated(new Date())
-            setError(null)
-          }
-          setIsLoading(false)
-        },
-        (err: Error) => {
-          setError(`Firebase: ${err.message}`)
-          setIsLoading(false)
-        },
-      )
-
-      return () => {
-        off(sensorsRef)
-        unsubscribe()
-      }
-    }
-
-    // ── Simulated fallback mode ──────────────────────────────────
-    setIsLoading(false)
-
-    const tick = () => {
-      const live = generateLiveReadings()
-      setReadings(live)
-      appendHistory(live)
+    const tickSimulated = () => {
+      setReadings((prev) => {
+        const updated = prev.map((r) =>
+          SIMULATED_SENSORS.has(r.name) ? { ...r, value: simulateValue(r) } : r,
+        )
+        return updated
+      })
       setLastUpdated(new Date())
     }
 
-    tick()
-    simulationRef.current = setInterval(tick, pollInterval)
+    tickSimulated() // initial tick
+    simIntervalRef.current = setInterval(tickSimulated, pollInterval)
     return () => {
-      if (simulationRef.current) clearInterval(simulationRef.current)
+      if (simIntervalRef.current) clearInterval(simIntervalRef.current)
     }
-  }, [pollInterval, appendHistory, firebaseReady])
+  }, [pollInterval])
+
+  // ── Firebase real-time listener (temperature, humidity, waterLevel) ──────────
+  useEffect(() => {
+    if (!firebaseReady || !db) {
+      // Full simulation mode — also simulate the Firebase sensors
+      const tickAll = () => {
+        setReadings((prev) => prev.map((r) => ({ ...r, value: simulateValue(r) })))
+        setLastUpdated(new Date())
+      }
+      tickAll()
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+
+    const sensorsRef: DatabaseReference = ref(db, 'sensors')
+
+    const unsubscribe = onValue(
+      sensorsRef,
+      (snapshot: DataSnapshot) => {
+        const data = snapshot.val() as Record<string, unknown> | null
+        if (data) {
+          setReadings((prev) => {
+            const updated = prev.map((r) => {
+              if (FIREBASE_SENSORS.has(r.name)) {
+                const raw = data[r.name]
+                return typeof raw === 'number' ? { ...r, value: raw } : r
+              }
+              return r // keep simulated value for moisture/ph/ammonia
+            })
+            // append history with merged values
+            const byName = Object.fromEntries(updated.map((r) => [r.name, r.value]))
+            const now = new Date()
+            setHistory((prev) => [
+              ...prev.slice(-23),
+              {
+                time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                temperature: byName.temperature ?? 0,
+                moisture: byName.moisture ?? 0,
+                humidity: byName.humidity ?? 0,
+                waterLevel: byName.waterLevel ?? 0,
+                ph: byName.ph ?? 0,
+                ammonia: byName.ammonia ?? 0,
+              },
+            ])
+            return updated
+          })
+          setLastUpdated(new Date())
+          setError(null)
+        }
+        setIsLoading(false)
+      },
+      (err: Error) => {
+        setError(`Firebase: ${err.message}`)
+        setIsLoading(false)
+      },
+    )
+
+    return () => {
+      off(sensorsRef)
+      unsubscribe()
+    }
+  }, [firebaseReady, appendHistory])
 
   return {
     readings,
